@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Share2, Check, Copy } from 'lucide-react';
 import { generateShareableUrl } from '../utils/urlParams';
 
@@ -10,6 +10,20 @@ interface ShareButtonProps {
 export default function ShareButton({ schema, data }: ShareButtonProps) {
   const [copied, setCopied] = useState(false);
   const [showUrl, setShowUrl] = useState(false);
+  const copiedTimeoutRef = useRef<number | null>(null);
+  const showUrlTimeoutRef = useRef<number | null>(null);
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (copiedTimeoutRef.current) {
+        clearTimeout(copiedTimeoutRef.current);
+      }
+      if (showUrlTimeoutRef.current) {
+        clearTimeout(showUrlTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleShare = async () => {
     const shareableUrl = generateShareableUrl(schema, data);
@@ -17,11 +31,19 @@ export default function ShareButton({ schema, data }: ShareButtonProps) {
     try {
       await navigator.clipboard.writeText(shareableUrl);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
+      // Clear any existing timeout
+      if (copiedTimeoutRef.current) {
+        clearTimeout(copiedTimeoutRef.current);
+      }
+      copiedTimeoutRef.current = setTimeout(() => setCopied(false), 2000);
+    } catch {
       // Fallback: show the URL for manual copying
       setShowUrl(true);
-      setTimeout(() => setShowUrl(false), 5000);
+      // Clear any existing timeout
+      if (showUrlTimeoutRef.current) {
+        clearTimeout(showUrlTimeoutRef.current);
+      }
+      showUrlTimeoutRef.current = setTimeout(() => setShowUrl(false), 5000);
     }
   };
 

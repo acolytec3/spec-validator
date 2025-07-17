@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Wand2 } from 'lucide-react';
 
 interface JsonEditorProps {
@@ -28,7 +28,7 @@ export default function JsonEditor({ label, value, onChange, placeholder, error,
 
   const canPrettify = value.trim() && !error;
 
-  const generateLineNumbers = () => {
+  const lineNumbers = useMemo(() => {
     const lines = value.split('\n');
     return lines.map((_, index) => {
       const lineNumber = index + 1;
@@ -47,7 +47,8 @@ export default function JsonEditor({ label, value, onChange, placeholder, error,
         </div>
       );
     });
-  };
+  }, [value, highlightedLines]);
+
   return (
     <div className={`flex flex-col space-y-2 ${className}`}>
       <div className="flex items-center justify-between">
@@ -72,7 +73,7 @@ export default function JsonEditor({ label, value, onChange, placeholder, error,
         }`}>
           {/* Line numbers */}
           <div className="bg-gray-50 border-r border-gray-200 py-4 flex flex-col">
-            {generateLineNumbers()}
+            {lineNumbers}
           </div>
           
           {/* Text area */}
