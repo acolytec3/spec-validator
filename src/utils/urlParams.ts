@@ -22,19 +22,21 @@ export function parseUrlParams(): UrlParams {
 
     if (schema) {
       try {
-        // Decode and parse the schema parameter
-        params.schema = decodeURIComponent(schema);
+        // Parse the compact JSON and pretty-print it
+        const parsed = JSON.parse(schema);
+        params.schema = JSON.stringify(parsed, null, 2);
       } catch (error) {
-        console.warn('Failed to decode schema parameter:', error);
+        console.warn('Failed to parse schema parameter:', error);
       }
     }
 
     if (data) {
       try {
-        // Decode and parse the data parameter
-        params.data = decodeURIComponent(data);
+        // Parse the compact JSON and pretty-print it
+        const parsed = JSON.parse(data);
+        params.data = JSON.stringify(parsed, null, 2);
       } catch (error) {
-        console.warn('Failed to decode data parameter:', error);
+        console.warn('Failed to parse data parameter:', error);
       }
     }
   } catch (error) {
@@ -48,11 +50,23 @@ export function updateUrlParams(schema: string, data: string) {
   const urlParams = new URLSearchParams();
 
   if (schema.trim()) {
-    urlParams.set('schema', encodeURIComponent(schema));
+    try {
+      // Parse the pretty-printed JSON and compact it for storage
+      const parsed = JSON.parse(schema);
+      urlParams.set('schema', JSON.stringify(parsed));
+    } catch (error) {
+      console.warn('Failed to parse schema for URL storage:', error);
+    }
   }
 
   if (data.trim()) {
-    urlParams.set('data', encodeURIComponent(data));
+    try {
+      // Parse the pretty-printed JSON and compact it for storage
+      const parsed = JSON.parse(data);
+      urlParams.set('data', JSON.stringify(parsed));
+    } catch (error) {
+      console.warn('Failed to parse data for URL storage:', error);
+    }
   }
 
   // Create the hash fragment
@@ -67,11 +81,23 @@ export function generateShareableUrl(schema: string, data: string): string {
   const urlParams = new URLSearchParams();
 
   if (schema.trim()) {
-    urlParams.set('schema', encodeURIComponent(schema));
+    try {
+      // Parse the pretty-printed JSON and compact it for storage
+      const parsed = JSON.parse(schema);
+      urlParams.set('schema', JSON.stringify(parsed));
+    } catch (error) {
+      console.warn('Failed to parse schema for URL generation:', error);
+    }
   }
 
   if (data.trim()) {
-    urlParams.set('data', encodeURIComponent(data));
+    try {
+      // Parse the pretty-printed JSON and compact it for storage
+      const parsed = JSON.parse(data);
+      urlParams.set('data', JSON.stringify(parsed));
+    } catch (error) {
+      console.warn('Failed to parse data for URL generation:', error);
+    }
   }
 
   const hash = urlParams.toString();
