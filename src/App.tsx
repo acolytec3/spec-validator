@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { validateSchema, validateData, parseJSON, ValidationResult, ValidationError } from './utils/validator';
+import { useCallback, useEffect, useState } from 'react';
 import { findLineForPath } from './utils/jsonLineMapper';
-import { parseUrlParams, updateUrlParams, generateShareableUrl } from './utils/urlParams';
+import { generateShareableUrl, parseUrlParams, updateUrlParams } from './utils/urlParams';
+import { parseJSON, validateData, validateSchema, ValidationError, ValidationResult } from './utils/validator';
 
 function App() {
   console.log('App: Component rendering...');
@@ -131,10 +131,8 @@ function App() {
     
     try {
       // Parse and validate schema
-      console.log('App: Parsing schema');
       const schemaParse = parseJSON(schema);
       if (!schemaParse.success) {
-        console.log('App: Schema parse failed');
         setSchemaParseError(schemaParse.error);
         setSchemaValidation(null);
         setDataValidation(null);
@@ -142,25 +140,21 @@ function App() {
         return;
       }
       
-      console.log('App: Validating schema');
       setSchemaParseError(undefined);
       const schemaResult = validateSchema(schemaParse.data as Record<string, unknown>);
       setSchemaValidation(schemaResult);
-      console.log('App: Schema validation result:', schemaResult.valid);
 
       // Parse and validate data if provided
       if (data.trim()) {
         console.log('App: Parsing data');
         const dataParse = parseJSON(data);
         if (!dataParse.success) {
-          console.log('App: Data parse failed');
           setDataParseError(dataParse.error);
           setDataValidation(null);
           setIsValidating(false);
           return;
         }
         
-        console.log('App: Validating data');
         setDataParseError(undefined);
         const dataResult = validateData(schemaParse.data as Record<string, unknown>, dataParse.data);
         
@@ -189,7 +183,6 @@ function App() {
 
   // Trigger validation when schema or data changes (debounced)
   useEffect(() => {
-    console.log('App: Validation effect running, schema:', schema.length, 'data:', data.length);
     const timeoutId = setTimeout(() => {
       console.log('App: Calling validateAll from effect');
       validateAll();
