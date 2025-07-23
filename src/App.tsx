@@ -16,80 +16,37 @@ function App() {
   const [schemaValidation, setSchemaValidation] = useState<ValidationResult | null>(null);
   const [dataValidation, setDataValidation] = useState<ValidationResult | null>(null);
   const [highlightedLines, setHighlightedLines] = useState<number[]>([]);
+  const [schemaHighlightedLines, setSchemaHighlightedLines] = useState<number[]>([]);
 
   console.log('App: State initialized');
 
   // Example schemas data
   const examples = [
     {
-      name: 'Person Schema',
+      name: 'eth_chainId',
       schema: `{
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
-    "name": {
+    "jsonrpc": {
       "type": "string",
-      "minLength": 1
+      "const": "2.0"
     },
-    "age": {
-      "type": "integer",
-      "minimum": 0,
-      "maximum": 150
+    "id": {
+      "type": "integer"
     },
-    "email": {
+    "result": {
       "type": "string",
-      "format": "email"
-    },
-    "address": {
-      "type": "object",
-      "properties": {
-        "street": { "type": "string" },
-        "city": { "type": "string" },
-        "zipCode": { "type": "string", "pattern": "^[0-9]{5}$" }
-      },
-      "required": ["street", "city"]
+      "pattern": "^0x[a-fA-F0-9]+$",
+      "description": "Hex encoded chain ID"
     }
   },
-  "required": ["name", "age"]
+  "required": ["jsonrpc", "id", "result"]
 }`,
       data: `{
-  "name": "John Doe",
-  "age": 30,
-  "email": "john@example.com",
-  "address": {
-    "street": "123 Main St",
-    "city": "New York",
-    "zipCode": "10001"
-  }
-}`
-    },
-    {
-      name: 'Array Schema',
-      schema: `{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "properties": {
-    "items": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "integer" },
-          "name": { "type": "string" },
-          "price": { "type": "number", "minimum": 0 }
-        },
-        "required": ["id", "name", "price"]
-      },
-      "minItems": 1
-    }
-  },
-  "required": ["items"]
-}`,
-      data: `{
-  "items": [
-    { "id": 1, "name": "Apple", "price": 1.50 },
-    { "id": 2, "name": "Banana", "price": 0.75 }
-  ]
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": "0x1"
 }`
     }
   ];
@@ -143,7 +100,18 @@ function App() {
       
       setSchemaParseError(undefined);
       const schemaResult = validateSchema(schemaParse.data as Record<string, unknown>);
-      setSchemaValidation(schemaResult);
+      
+      // Add line numbers to schema validation errors
+      if (!schemaResult.valid) {
+        console.log('App: Adding line numbers to schema errors');
+        const errorsWithLines: ValidationError[] = schemaResult.errors.map(error => {
+          const lineNumber = findLineForPath(schema, error.path);
+          return { ...error, lineNumber };
+        });
+        setSchemaValidation({ ...schemaResult, errors: errorsWithLines });
+      } else {
+        setSchemaValidation(schemaResult);
+      }
 
       // Parse and validate data if provided
       if (data.trim()) {
@@ -224,6 +192,11 @@ function App() {
   const handleErrorClick = (lineNumber: number) => {
     setHighlightedLines([lineNumber]);
     setTimeout(() => setHighlightedLines([]), 3000);
+  };
+
+  const handleSchemaErrorClick = (lineNumber: number) => {
+    setSchemaHighlightedLines([lineNumber]);
+    setTimeout(() => setSchemaHighlightedLines([]), 3000);
   };
 
   const hasContent = schema.trim() || data.trim();
@@ -323,6 +296,7 @@ function App() {
                 value={schema}
                 onChange={setSchema}
                 error={schemaParseError}
+                highlightedLines={schemaHighlightedLines}
                 placeholder={`{
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
@@ -368,14 +342,34 @@ function App() {
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                           {schemaValidation.errors.map((error, index) => (
-                            <div key={index} style={{ padding: '8px', backgroundColor: 'white', border: '1px solid #fecaca', borderRadius: '4px' }}>
+                            <div 
+                              key={index} 
+                              style={{ 
+                                padding: '8px', 
+                                backgroundColor: 'white', 
+                                border: '1px solid #fecaca', 
+                                borderRadius: '4px',
+                                cursor: error.lineNumber ? 'pointer' : 'default'
+                              }}
+                              onClick={() => error.lineNumber && handleSchemaErrorClick(error.lineNumber)}
+                            >
                               <div style={{ fontSize: '12px', color: '#dc2626', marginBottom: '4px' }}>
                                 <span style={{ backgroundColor: '#fef2f2', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace' }}>
                                   {error.keyword}
                                 </span>
                                 <span style={{ marginLeft: '8px' }}>Path: {error.path || 'root'}</span>
+                                {error.lineNumber && (
+                                  <span style={{ marginLeft: '8px', backgroundColor: '#dbeafe', padding: '2px 6px', borderRadius: '4px', color: '#1e40af' }}>
+                                    Line {error.lineNumber}
+                                  </span>
+                                )}
                               </div>
                               <p style={{ fontSize: '13px', color: '#dc2626', margin: '4px 0' }}>{error.message}</p>
+                              {error.lineNumber && (
+                                <p style={{ fontSize: '11px', color: '#3b82f6', fontStyle: 'italic', margin: '4px 0 0 0' }}>
+                                  Click to highlight line in editor
+                                </p>
+                              )}
                             </div>
                           ))}
                         </div>
