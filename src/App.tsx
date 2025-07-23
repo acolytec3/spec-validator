@@ -74,10 +74,10 @@ function App() {
     return () => clearTimeout(timeoutId);
   }, [schema, data]);
 
-  // Use useCallback to prevent validateAll from being recreated on every render
-  const validateAll = useCallback(async () => {
+  // Manual validation function - accepts current values as parameters
+  const validateAll = useCallback(async (currentSchema: string, currentData: string) => {
     console.log('App: validateAll called');
-    if (!schema.trim()) {
+    if (!currentSchema.trim()) {
       console.log('App: No schema, clearing validation');
       setSchemaValidation(null);
       setDataValidation(null);
@@ -89,7 +89,7 @@ function App() {
     
     try {
       // Parse and validate schema
-      const schemaParse = parseJSON(schema);
+      const schemaParse = parseJSON(currentSchema);
       if (!schemaParse.success) {
         setSchemaParseError(schemaParse.error);
         setSchemaValidation(null);
@@ -105,7 +105,7 @@ function App() {
       if (!schemaResult.valid) {
         console.log('App: Adding line numbers to schema errors');
         const errorsWithLines: ValidationError[] = schemaResult.errors.map(error => {
-          const lineNumber = findLineForPath(schema, error.path);
+          const lineNumber = findLineForPath(currentSchema, error.path);
           return { ...error, lineNumber };
         });
         setSchemaValidation({ ...schemaResult, errors: errorsWithLines });
@@ -114,9 +114,9 @@ function App() {
       }
 
       // Parse and validate data if provided
-      if (data.trim()) {
+      if (currentData.trim()) {
         console.log('App: Parsing data');
-        const dataParse = parseJSON(data);
+        const dataParse = parseJSON(currentData);
         if (!dataParse.success) {
           setDataParseError(dataParse.error);
           setDataValidation(null);
@@ -131,7 +131,7 @@ function App() {
         if (!dataResult.valid) {
           console.log('App: Adding line numbers to errors');
           const errorsWithLines: ValidationError[] = dataResult.errors.map(error => {
-            const lineNumber = findLineForPath(data, error.path);
+            const lineNumber = findLineForPath(currentData, error.path);
             return { ...error, lineNumber };
           });
           setDataValidation({ ...dataResult, errors: errorsWithLines });
@@ -148,16 +148,18 @@ function App() {
       console.log('App: Validation complete');
       setIsValidating(false);
     }
-  }, [schema, data]); // Dependencies are schema and data
+  }, []); // No dependencies - validation is now manual
 
-  // Trigger validation when schema or data changes (debounced)
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      console.log('App: Calling validateAll from effect');
-      validateAll();
-    }, 300);
-    return () => clearTimeout(timeoutId);
-  }, [validateAll]); // Only depend on validateAll
+  // Manual validation triggers
+  const handleSchemaBlur = () => {
+    console.log('App: Schema editor lost focus, triggering validation');
+    validateAll(schema, data);
+  };
+
+  const handleDataBlur = () => {
+    console.log('App: Data editor lost focus, triggering validation');
+    validateAll(schema, data);
+  };
 
   const handleShare = async () => {
     const shareableUrl = generateShareableUrl(schema, data);
@@ -295,6 +297,7 @@ function App() {
                 label="JSON Schema"
                 value={schema}
                 onChange={setSchema}
+                onBlur={handleSchemaBlur}
                 error={schemaParseError}
                 highlightedLines={schemaHighlightedLines}
                 placeholder={`{
@@ -386,6 +389,7 @@ function App() {
                 label="JSON Data"
                 value={data}
                 onChange={setData}
+                onBlur={handleDataBlur}
                 error={dataParseError}
                 highlightedLines={highlightedLines}
                 placeholder={`{

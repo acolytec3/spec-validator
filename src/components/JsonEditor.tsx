@@ -8,6 +8,7 @@ interface JsonEditorProps {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  onBlur?: () => void;
   placeholder?: string;
   error?: string;
   className?: string;
@@ -109,12 +110,24 @@ export default function JsonEditor({
   label, 
   value, 
   onChange, 
+  onBlur,
   error, 
   className = '', 
   highlightedLines = [] 
 }: JsonEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const editorViewRef = useRef<EditorView | null>(null);
+  const onChangeRef = useRef(onChange);
+  const onBlurRef = useRef(onBlur);
+
+  // Update refs when props change
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  useEffect(() => {
+    onBlurRef.current = onBlur;
+  }, [onBlur]);
 
   const handlePrettify = () => {
     const prettified = prettifyJSON(value);
@@ -137,8 +150,15 @@ export default function JsonEditor({
         lineHighlightField,
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
-            onChange(update.state.doc.toString());
+            onChangeRef.current(update.state.doc.toString());
           }
+        }),
+        EditorView.domEventHandlers({
+          blur: () => {
+            if (onBlurRef.current) {
+              onBlurRef.current();
+            }
+          },
         }),
         EditorView.theme({
           '.cm-editor': {
@@ -160,7 +180,7 @@ export default function JsonEditor({
     return () => {
       view.destroy();
     };
-  }, [error, onChange, value]); // Only run once on mount
+  }, []); // Only run once on mount
 
   // Update editor content when value changes
   useEffect(() => {
@@ -217,8 +237,15 @@ export default function JsonEditor({
           theme,
           EditorView.updateListener.of((update) => {
             if (update.docChanged) {
-              onChange(update.state.doc.toString());
+              onChangeRef.current(update.state.doc.toString());
             }
+          }),
+          EditorView.domEventHandlers({
+            blur: () => {
+              if (onBlurRef.current) {
+                onBlurRef.current();
+              }
+            },
           }),
         ],
       });
