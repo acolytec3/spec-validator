@@ -1,5 +1,8 @@
-import React, { useMemo } from 'react';
-import { Wand2 } from 'lucide-react';
+import { defaultKeymap } from '@codemirror/commands';
+import { json } from '@codemirror/lang-json';
+import { EditorState, StateEffect, StateField } from '@codemirror/state';
+import { Decoration, DecorationSet, EditorView, keymap, lineNumbers } from '@codemirror/view';
+import { useEffect, useRef } from 'react';
 
 interface JsonEditorProps {
   label: string;
@@ -20,7 +23,99 @@ function prettifyJSON(jsonString: string): string {
   }
 }
 
-export default function JsonEditor({ label, value, onChange, placeholder, error, className = '', highlightedLines = [] }: JsonEditorProps) {
+// Create a custom theme that matches your app's design
+const customTheme = EditorView.theme({
+  '&': {
+    fontSize: '14px',
+    fontFamily: 'monospace',
+  },
+  '.cm-editor': {
+    borderRadius: '8px',
+    border: '1px solid #d1d5db',
+    overflow: 'hidden',
+  },
+  '.cm-editor.cm-focused': {
+    outline: 'none',
+    borderColor: '#3b82f6',
+    boxShadow: '0 0 0 2px rgba(59, 130, 246, 0.1)',
+  },
+  '.cm-content': {
+    padding: '16px',
+    minHeight: '256px',
+  },
+  '.cm-line': {
+    lineHeight: '1.25rem',
+  },
+  '.cm-gutters': {
+    backgroundColor: '#f9fafb',
+    borderRight: '1px solid #e5e7eb',
+    color: '#6b7280',
+  },
+  '.cm-lineNumbers': {
+    paddingRight: '8px',
+  },
+  '.cm-activeLineGutter': {
+    backgroundColor: '#f3f4f6',
+  },
+  '.cm-activeLine': {
+    backgroundColor: '#f3f4f6',
+  },
+  '.cm-selectionBackground': {
+    backgroundColor: '#dbeafe',
+  },
+  '.cm-highlighted-line': {
+    backgroundColor: '#fef2f2',
+    borderLeft: '3px solid #ef4444',
+  },
+  '.cm-highlighted-line .cm-line': {
+    backgroundColor: '#fef2f2',
+  },
+});
+
+// State effect for highlighting lines
+const highlightLines = StateEffect.define<number[]>();
+
+// State field to manage line decorations
+const lineHighlightField = StateField.define<DecorationSet>({
+  create() {
+    return Decoration.none;
+  },
+  update(decorations, tr) {
+    decorations = decorations.map(tr.changes);
+    
+    for (const effect of tr.effects) {
+      if (effect.is(highlightLines)) {
+        const lines = effect.value;
+        if (lines.length === 0) {
+          decorations = Decoration.none;
+        } else {
+          const lineDecorations = lines.map(lineNumber => {
+            const line = tr.state.doc.line(lineNumber);
+            return Decoration.line({
+              class: 'cm-highlighted-line',
+            }).range(line.from);
+          });
+          decorations = Decoration.set(lineDecorations);
+        }
+      }
+    }
+    
+    return decorations;
+  },
+  provide: f => EditorView.decorations.from(f),
+});
+
+export default function JsonEditor({ 
+  label, 
+  value, 
+  onChange, 
+  error, 
+  className = '', 
+  highlightedLines = [] 
+}: JsonEditorProps) {
+  const editorRef = useRef<HTMLDivElement>(null);
+  const editorViewRef = useRef<EditorView | null>(null);
+
   const handlePrettify = () => {
     const prettified = prettifyJSON(value);
     onChange(prettified);
@@ -28,26 +123,109 @@ export default function JsonEditor({ label, value, onChange, placeholder, error,
 
   const canPrettify = value.trim() && !error;
 
-  const lineNumbers = useMemo(() => {
-    const lines = value.split('\n');
-    return lines.map((_, index) => {
-      const lineNumber = index + 1;
-      const isHighlighted = highlightedLines.includes(lineNumber);
-      return (
-        <div
-          key={lineNumber}
-          className={`text-right pr-2 text-xs leading-5 select-none ${
-            isHighlighted 
-              ? 'bg-red-200 text-red-800 font-bold' 
-              : 'text-gray-400'
-          }`}
-          style={{ minWidth: '2rem' }}
-        >
-          {lineNumber}
-        </div>
-      );
+  useEffect(() => {
+    if (!editorRef.current) return;
+
+    // Create editor state
+    const state = EditorState.create({
+      doc: value,
+      extensions: [
+        lineNumbers(),
+        keymap.of(defaultKeymap),
+        json(),
+        customTheme,
+        lineHighlightField,
+        EditorView.updateListener.of((update) => {
+          if (update.docChanged) {
+            onChange(update.state.doc.toString());
+          }
+        }),
+        EditorView.theme({
+          '.cm-editor': {
+            borderColor: error ? '#ef4444' : '#d1d5db',
+            backgroundColor: error ? '#fef2f2' : 'white',
+          },
+        }),
+      ],
     });
-  }, [value, highlightedLines]);
+
+    // Create editor view
+    const view = new EditorView({
+      state,
+      parent: editorRef.current,
+    });
+
+    editorViewRef.current = view;
+
+    return () => {
+      view.destroy();
+    };
+  }, [error, onChange, value]); // Only run once on mount
+
+  // Update editor content when value changes
+  useEffect(() => {
+    if (editorViewRef.current) {
+      const currentValue = editorViewRef.current.state.doc.toString();
+      if (currentValue !== value) {
+        editorViewRef.current.dispatch({
+          changes: {
+            from: 0,
+            to: editorViewRef.current.state.doc.length,
+            insert: value,
+          },
+        });
+      }
+    }
+  }, [value]);
+
+  // Update highlighted lines
+  useEffect(() => {
+    if (editorViewRef.current) {
+      editorViewRef.current.dispatch({
+        effects: highlightLines.of(highlightedLines),
+      });
+    }
+  }, [highlightedLines]);
+
+  // Update error styling
+  useEffect(() => {
+    if (editorViewRef.current) {
+      const theme = error 
+        ? EditorView.theme({
+            '.cm-editor': {
+              borderColor: '#ef4444',
+              backgroundColor: '#fef2f2',
+            },
+          })
+        : EditorView.theme({
+            '.cm-editor': {
+              borderColor: '#d1d5db',
+              backgroundColor: 'white',
+            },
+          });
+
+      // Recreate the editor with new theme
+      const currentValue = editorViewRef.current.state.doc.toString();
+      const newState = EditorState.create({
+        doc: currentValue,
+        extensions: [
+          lineNumbers(),
+          keymap.of(defaultKeymap),
+          json(),
+          customTheme,
+          lineHighlightField,
+          theme,
+          EditorView.updateListener.of((update) => {
+            if (update.docChanged) {
+              onChange(update.state.doc.toString());
+            }
+          }),
+        ],
+      });
+
+      editorViewRef.current.setState(newState);
+    }
+  }, [error, onChange]);
 
   return (
     <div className={`flex flex-col space-y-2 ${className}`}>
@@ -63,35 +241,11 @@ export default function JsonEditor({ label, value, onChange, placeholder, error,
           }`}
           title="Format JSON"
         >
-          <Wand2 className="h-3 w-3" />
           <span>Prettify</span>
         </button>
       </div>
       <div className="relative">
-        <div className={`flex border rounded-lg overflow-hidden ${
-          error ? 'border-red-500' : 'border-gray-300'
-        }`}>
-          {/* Line numbers */}
-          <div className="bg-gray-50 border-r border-gray-200 py-4 flex flex-col">
-            {lineNumbers}
-          </div>
-          
-          {/* Text area */}
-          <textarea
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder={placeholder}
-            className={`flex-1 min-h-96 p-4 font-mono text-sm resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-              error ? 'bg-red-50' : 'bg-white'
-            }`}
-            style={{ 
-              lineHeight: '1.25rem',
-              outline: 'none',
-              border: 'none'
-            }}
-            spellCheck={false}
-          />
-        </div>
+        <div ref={editorRef} className="min-h-96" />
         {error && (
           <div className="absolute top-2 right-2 bg-red-100 text-red-800 px-2 py-1 rounded text-xs">
             Invalid JSON

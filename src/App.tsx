@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { findLineForPath } from './utils/jsonLineMapper';
 import { generateShareableUrl, parseUrlParams, updateUrlParams } from './utils/urlParams';
 import { parseJSON, validateData, validateSchema, ValidationError, ValidationResult } from './utils/validator';
+import JsonEditor from './components/JsonEditor';
 
 function App() {
   console.log('App: Component rendering...');
@@ -317,21 +318,11 @@ function App() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             {/* Schema Input */}
             <div style={{ backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb', padding: '24px' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#111827', marginBottom: '16px' }}>JSON Schema</h2>
-              <textarea 
+              <JsonEditor
+                label="JSON Schema"
                 value={schema}
-                onChange={(e) => setSchema(e.target.value)}
-                style={{ 
-                  width: '100%', 
-                  height: '256px', 
-                  padding: '16px', 
-                  fontFamily: 'monospace', 
-                  fontSize: '14px', 
-                  border: schemaParseError ? '1px solid #ef4444' : '1px solid #d1d5db', 
-                  borderRadius: '8px', 
-                  resize: 'vertical',
-                  backgroundColor: schemaParseError ? '#fef2f2' : 'white'
-                }}
+                onChange={setSchema}
+                error={schemaParseError}
                 placeholder={`{
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
@@ -341,11 +332,6 @@ function App() {
   "required": ["name"]
 }`}
               />
-              {schemaParseError && (
-                <div style={{ marginTop: '8px', padding: '8px 12px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', fontSize: '14px', color: '#dc2626' }}>
-                  Invalid JSON: {schemaParseError}
-                </div>
-              )}
               
               {/* Schema Validation Results */}
               <div style={{ marginTop: '16px' }}>
@@ -402,30 +388,16 @@ function App() {
 
             {/* Data Input */}
             <div style={{ backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb', padding: '24px' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#111827', marginBottom: '16px' }}>JSON Data</h2>
-              <textarea 
+              <JsonEditor
+                label="JSON Data"
                 value={data}
-                onChange={(e) => setData(e.target.value)}
-                style={{ 
-                  width: '100%', 
-                  height: '256px', 
-                  padding: '16px', 
-                  fontFamily: 'monospace', 
-                  fontSize: '14px', 
-                  border: dataParseError ? '1px solid #ef4444' : '1px solid #d1d5db', 
-                  borderRadius: '8px', 
-                  resize: 'vertical',
-                  backgroundColor: dataParseError ? '#fef2f2' : 'white'
-                }}
+                onChange={setData}
+                error={dataParseError}
+                highlightedLines={highlightedLines}
                 placeholder={`{
   "name": "John Doe"
 }`}
               />
-              {dataParseError && (
-                <div style={{ marginTop: '8px', padding: '8px 12px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', fontSize: '14px', color: '#dc2626' }}>
-                  Invalid JSON: {dataParseError}
-                </div>
-              )}
               
               {/* Data Validation Results */}
               <div style={{ marginTop: '16px' }}>
